@@ -1,0 +1,74 @@
+import pyttsx3  # For offline TTS (Text-to-Speech)
+import requests  # To interact with the Gemini API
+import SpeechRecognition as sr  # type: ignore # For speech recognition
+
+class AI_Assistant:
+    def __init__(self):  # Constructor for initializing the assistant
+        print("Initializing AI Assistant...")  # Debug statement to check if __init__ is called
+
+        # Set the Gemini API key to authenticate requests
+        self.gemini_api_key = "AIzaSyAWSDwQ-gy3D-2-Fcny10o3NM21WqycrB0"  # Replace with your actual Gemini API key
+        self.gemini_api_url = "Fcny10o3NM21WqycrB0"  # Replace with the correct Gemini API endpoint
+
+        # Initialize the pyttsx3 engine for offline TTS
+        self.engine = pyttsx3.init()
+
+        # Initialize the conversation history with a system message
+        self.full_transcript = [
+            {"role": "system", "content": "You are a receptionist at a dental clinic. Be resourceful and efficient."},
+        ]
+
+        # Initialize the speech recognizer
+        self.recognizer = sr.Recognizer()
+
+    def start_transcription(self):
+        print("Starting transcription...")  # Notify that transcription has started
+        while True:  # Infinite loop to keep listening
+            with sr.Microphone() as source:  # Use the microphone as the audio source
+                print("Listening...")  # Indicate the assistant is listening
+                audio = self.recognizer.listen(source)  # Capture audio input
+                try:
+                    # Recognize speech using Google's service
+                    text = self.recognizer.recognize_google(audio)
+                    print(f"You said: {text}")  # Print the recognized text
+                    self.generate_ai_response(text)  # Generate AI response based on recognized text
+                except sr.UnknownValueError:
+                    print("Sorry, I did not understand that.")  # Handle unrecognized speech
+                except sr.RequestError:
+                    print("Sorry, my speech service is down.")  # Handle service errors
+
+    def generate_ai_response(self, transcript):
+        # Append the user's input to the conversation history
+        self.full_transcript.append({"role": "user", "content": transcript})
+
+        # Make a request to the Gemini API
+        headers = {
+            "Authorization": f"Bearer {self.gemini_api_key}",  # API key for authorization
+            "Content-Type": "application/json"  # Set content type to JSON
+        }
+        data = {
+            "model": "Gemini Ultra 1.0",  # Specify the AI model to use
+            "messages": self.full_transcript  # Send the full conversation history
+        }
+
+        try:
+            # Send a POST request to the Gemini API
+            response = requests.post(self.gemini_api_url, json=data, headers=headers)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            assistant_reply = response.json().get('choices', [{}])[0].get('message', {}).get('content', '')
+            print(f"Assistant: {assistant_reply}")  # Print the assistant's reply
+
+            # Append the assistant's reply to the conversation history
+            self.full_transcript.append({"role": "assistant", "content": assistant_reply})
+
+            # Use pyttsx3 to speak the assistant's reply
+            self.engine.say(assistant_reply)
+            self.engine.runAndWait()  # Play the spoken response
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error contacting Gemini API: {e}")  # Handle API request errors
+
+# Create an instance of the AI_Assistant class and start transcription
+assistant = AI_Assistant()  # Initialize the assistant
+print(f"Recognizer initialized: {assistant.recognizer}")  # Debug print to confirm recognizer initialization
+assistant.start_transcription()  # Start listening for speech input
